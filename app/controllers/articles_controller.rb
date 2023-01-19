@@ -11,11 +11,11 @@ class ArticlesController < ApplicationController
   end
 
   def create
-    article = Article.create(article_params)
+    article = current_user.articles.create(article_params)
     render json: {data: article}
   end
 
-  def update  
+  def update
     @article.update(article_params)
     render json: {data: @article}
   end
@@ -29,37 +29,51 @@ class ArticlesController < ApplicationController
   end
 
   def create_comments
-    @article = Article.find(params[:id])
-    @comments = @article.comments.create(comment_params) 
-    render json: {data: @comments}
+    @comment = @article.comments.new(comment_params)
+    @comment.user_id = current_user.id
+    if @comment.save
+      if @article.user.present? && (@article.user&.id != @comment.user&.id)
+        SendEmailMailer.send_notification(@comment, @article).deliver_now
+      end
+      render json: {data: @comment}
+    else
+      return render json: {error: @comment.errors}, status: :unprocessable_entity
+    end
   end
 
-  def comments     
+  def comments
     @comments = @article.comments
     render json: {data: @comments}
   end
 
   def likes
-    @like = @article.likes.new
-    if @like.save
-      render json: {data: @like}
+    if @article.likes.where(user_id:current_user.id).present?
+      return render json: {message: "You have already like this article"}, status: :ok
     else
-      render json: {error: @like.errors}, status: :unprocessable_entity
+      @like = @article.likes.new
+      @like.user_id = current_user.id
+      if @like.save
+        if @article.user.present? && (@article.user&.id != @like.user&.id)
+          LikeEmailMailer.like_notification(@like, @article).deliver_now
+        end
+        render json: {data: @like}
+      else
+        render json: {error: @like.errors}, status: :unprocessable_entity
+      end
     end
   end
+  
 
   def unlike
     @article = Article.find(params[:id])
-    @like = @article.likes.find_by(id: params[:like_id])
-    if @like.present?
-       @like.destroy
+    @likes = @article.likes.where(user_id:current_user.id)
+    if @likes.present?
+       @likes.destroy_all
       return render json: {message: "Article unlike successfully"}
     else
       return render json: {error: "Like not found for this article"}, status: :not_found
     end
   end
-
-
 
   private 
   def find_article
@@ -74,6 +88,6 @@ class ArticlesController < ApplicationController
   end
 
   def comment_params
-      params.require(:comment).permit(:title, :article_id)
+      params.require(:comment).permit(:title, :article_id, :user_id)
     end
 end
