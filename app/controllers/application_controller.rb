@@ -1,5 +1,5 @@
 class ApplicationController < ActionController::Base
-	 before_action :authenticate_user!
+	before_action :authenticate_user!
   respond_to :json
  helper_method :current_user
  def getting_started

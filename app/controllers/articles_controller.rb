@@ -2,8 +2,8 @@ class ArticlesController < ApplicationController
   protect_from_forgery with: :null_session
   before_action :find_article,only: [:show,:update,:destroy, :create_comments, :comments, :likes]
   def index
-    @articles = Article.all
-    render json: {data: @articles}
+    articles = Article.all
+    render json: articles, each_serializer: ArticleSerializer
   end
 
   def show
@@ -12,7 +12,7 @@ class ArticlesController < ApplicationController
 
   def create
     article = current_user.articles.create(article_params)
-    render json: {data: article}
+    render json: article, each_serializer: ArticleSerializer
   end
 
   def update
@@ -42,8 +42,14 @@ class ArticlesController < ApplicationController
   end
 
   def comments
+    comments = []
     @comments = @article.comments
-    render json: {data: @comments}
+    @comments.each do |comment|
+    
+      is_like = Like.where(user_id: current_user.id, likeable_id: comment.id, likeable_type: "Comment").present?
+      comments << comment.attributes.merge(is_like: is_like)
+    end
+      render json: {data: comments}
   end
 
   def likes
@@ -59,10 +65,9 @@ class ArticlesController < ApplicationController
         render json: {data: @like}
       else
         render json: {error: @like.errors}, status: :unprocessable_entity
-      end
+      end 
     end
   end
-  
 
   def unlike
     @article = Article.find(params[:id])
@@ -75,12 +80,12 @@ class ArticlesController < ApplicationController
     end
   end
 
-  private 
+  private
   def find_article
-    @article = Article.find_by(id: params[:id]) 
+    @article = Article.find_by(id: params[:id])
     if @article.nil?
-      return render json: {error: "Article not found"}, status: :not_found
-    end 
+     return render json: {error: "Article not found"}, status: :not_found
+    end
   end
 
   def article_params
@@ -88,6 +93,6 @@ class ArticlesController < ApplicationController
   end
 
   def comment_params
-      params.require(:comment).permit(:title, :article_id, :user_id)
-    end
+    params.require(:comment).permit(:title, :article_id, :user_id)
+  end
 end

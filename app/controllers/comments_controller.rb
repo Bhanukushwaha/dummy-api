@@ -20,8 +20,8 @@ class CommentsController < ApplicationController
 	def unlike		
 		@comment = Comment.find(params[:id])		 
 		 @likes = @comment.likes.where(user_id:current_user.id)
-		 if @likes.present?
-     		@likes.destroy_all
+		if @likes.present?
+    	@likes.destroy_all
 	      return render json: {message: "Comment unlike successfully"}
 	    else
 	      return render json: {error: "Like not found for this comment"}, status: :not_found

@@ -1,5 +1,5 @@
 class RegistrationsController < ApplicationController
-  skip_before_action  :verify_authenticity_token 
+  skip_before_action  :verify_authenticity_token
   before_action :authenticate_user!, except: [:create] 
   def create
     user = User.new(registration_params)
